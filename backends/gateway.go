@@ -7,11 +7,12 @@ import (
 	"sync"
 	"time"
 
+	"runtime/debug"
+	"strings"
+
 	"github.com/flashmob/go-guerrilla/log"
 	"github.com/flashmob/go-guerrilla/mail"
 	"github.com/flashmob/go-guerrilla/response"
-	"runtime/debug"
-	"strings"
 )
 
 var ErrProcessorNotFound error
@@ -141,7 +142,10 @@ func (gw *BackendGateway) Process(e *mail.Envelope) Result {
 	case status := <-workerMsg.notifyMe:
 		defer workerMsgPool.Put(workerMsg) // can be recycled since we used the notifyMe channel
 		if status.err != nil {
-			return NewResult(response.Canned.FailBackendTransaction + status.err.Error())
+			if _, err := strconv.Atoi(status.err.Error()[:3]); err != nil {
+				return NewResult(response.Canned.FailBackendTransaction + status.err.Error())
+			}
+			return NewResult(status.err.Error())
 		}
 		return NewResult(response.Canned.SuccessMessageQueued + status.queuedID)
 
